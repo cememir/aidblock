@@ -26,6 +26,11 @@
   "optTestFail": { "message": "Anahtar testi başarısız:" },
 
   "ctxBlock": { "message": "Sentinel: bu öğeyi reklam olarak engelle" },
+  "ctxConfirmText": { "message": "Çizgiyle vurgulanan alan reklam olarak engellensin mi?" },
+  "ctxConfirmYes": { "message": "Engelle" },
+  "ctxExpand": { "message": "Genişlet" },
+  "ctxCancel": { "message": "İptal" },
+  "aiScanning": { "message": "Sentinel bu sayfadaki reklamları analiz ediyor…" },
   "votePromptText": { "message": "Başka bir Sentinel kullanıcısı vurgulanan öğeyi reklam olarak işaretledi. Sizce reklam mı?" },
   "voteYes": { "message": "Evet, gizle" },
   "voteNo": { "message": "Hayır" },

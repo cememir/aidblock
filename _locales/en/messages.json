@@ -26,6 +26,11 @@
   "optTestFail": { "message": "Key test failed:" },
 
   "ctxBlock": { "message": "Sentinel: block this element as an ad" },
+  "ctxConfirmText": { "message": "Block the highlighted area as an ad?" },
+  "ctxConfirmYes": { "message": "Block" },
+  "ctxExpand": { "message": "Expand" },
+  "ctxCancel": { "message": "Cancel" },
+  "aiScanning": { "message": "Sentinel is analyzing ads on this page…" },
   "votePromptText": { "message": "Another Sentinel user marked the highlighted element as an ad. Is it an ad?" },
   "voteYes": { "message": "Yes, hide it" },
   "voteNo": { "message": "No" },

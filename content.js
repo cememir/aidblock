@@ -169,19 +169,105 @@
       .slice(0, 45000);
   }
 
-  // ---- Sağ tık engelleme + topluluk oyu ----
+  // ---- Ortak mini UI yardımcıları (onay kutusu, oy kutusu, rozet) ----
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg.type === "CONTEXT_BLOCK") {
-      if (!lastContextTarget) { sendResponse({ ok: false }); return; }
-      const target = climbWrapper(lastContextTarget);
+  function uiBox() {
+    const box = document.createElement("div");
+    box.style.cssText =
+      "position:fixed;bottom:16px;right:16px;z-index:2147483647;background:#161b23;" +
+      "color:#dfe6ee;border:1px solid #334155;border-radius:10px;padding:12px 14px;" +
+      "font:13px/1.5 system-ui,sans-serif;max-width:300px;box-shadow:0 6px 24px rgba(0,0,0,.4)";
+    return box;
+  }
+
+  function uiBtn(label, bg, fg = "#0e1116") {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.style.cssText =
+      `margin:6px 8px 0 0;padding:5px 14px;border:0;border-radius:6px;cursor:pointer;` +
+      `font:inherit;color:${fg};background:${bg}`;
+    return b;
+  }
+
+  // ---- Sağ tık engelleme: alan vurgulanır, onaylanırsa engellenir ----
+
+  let picker = null; // aktif seçim oturumu
+
+  function cancelPicker() {
+    if (!picker) return;
+    picker.unmark();
+    picker.box.remove();
+    picker = null;
+  }
+
+  function startPicker(initial) {
+    cancelPicker();
+    let target = climbWrapper(initial);
+    let saved = "";
+    const mark = (el) => { saved = el.style.outline; el.style.outline = "3px dashed #ef4444"; el.style.outlineOffset = "-2px"; };
+    const unmark = () => { if (target) { target.style.outline = saved; target.style.outlineOffset = ""; } };
+    mark(target);
+
+    const box = uiBox();
+    const q = document.createElement("div");
+    q.textContent = chrome.i18n.getMessage("ctxConfirmText");
+    const block = uiBtn(chrome.i18n.getMessage("ctxConfirmYes"), "#ef4444", "#fff");
+    const grow = uiBtn(chrome.i18n.getMessage("ctxExpand"), "#334155", "#dfe6ee");
+    const cancel = uiBtn(chrome.i18n.getMessage("ctxCancel"), "#94a3b8");
+
+    grow.onclick = () => {
+      // Seçimi bir üst sarmalayıcıya genişlet (body'ye kadar)
+      const p = target.parentElement;
+      if (!p || p === document.body) return;
+      unmark();
+      target = p;
+      mark(target);
+    };
+    block.onclick = () => {
+      unmark();
       const sel = cssPath(target);
       target.style.setProperty("display", "none", "important");
       injectCSS([sel]); // sonraki yüklemeler için de stil bloğu
       chrome.runtime.sendMessage({ type: "SAVE_USER_RULE", hostname: HOST, selector: sel });
-      sendResponse({ ok: true, selector: sel });
+      box.remove();
+      picker = null;
+    };
+    cancel.onclick = cancelPicker;
+
+    box.append(q, block, grow, cancel);
+    document.documentElement.appendChild(box);
+    picker = { box, unmark };
+    setTimeout(cancelPicker, 30000); // cevapsız kalırsa kendiliğinden kapan
+  }
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg.type === "CONTEXT_BLOCK") {
+      if (!lastContextTarget) { sendResponse({ ok: false }); return; }
+      startPicker(lastContextTarget);
+      sendResponse({ ok: true });
     }
   });
+
+  // ---- AI analiz rozeti: cevap gelene kadar küçük bir "tarama" göstergesi ----
+
+  function showScanBadge() {
+    const badge = uiBox();
+    badge.style.display = "flex";
+    badge.style.alignItems = "center";
+    badge.style.gap = "10px";
+    badge.style.padding = "8px 12px";
+    const spin = document.createElement("span");
+    spin.style.cssText =
+      "width:14px;height:14px;flex:none;border:2px solid #334155;border-top-color:#4ade80;" +
+      "border-radius:50%;animation:sentinel-spin .8s linear infinite";
+    const style = document.createElement("style");
+    style.textContent = "@keyframes sentinel-spin{to{transform:rotate(360deg)}}";
+    const txt = document.createElement("span");
+    txt.textContent = chrome.i18n.getMessage("aiScanning");
+    badge.append(style, spin, txt);
+    document.documentElement.appendChild(badge);
+    return () => badge.remove();
+  }
 
   /**
    * Beklemedeki topluluk kuralı için oy kutusu: hedef element vurgulanır,
@@ -198,24 +284,11 @@
     el.style.outline = "3px dashed #f59e0b";
     el.scrollIntoView({ block: "center", behavior: "smooth" });
 
-    const box = document.createElement("div");
-    box.style.cssText =
-      "position:fixed;bottom:16px;right:16px;z-index:2147483647;background:#161b23;" +
-      "color:#dfe6ee;border:1px solid #334155;border-radius:10px;padding:12px 14px;" +
-      "font:13px/1.5 system-ui,sans-serif;max-width:280px;box-shadow:0 6px 24px rgba(0,0,0,.4)";
+    const box = uiBox();
     const q = document.createElement("div");
     q.textContent = chrome.i18n.getMessage("votePromptText");
-    q.style.marginBottom = "8px";
-    const mkBtn = (label, bgColor) => {
-      const b = document.createElement("button");
-      b.textContent = label;
-      b.style.cssText =
-        `margin-right:8px;padding:5px 14px;border:0;border-radius:6px;cursor:pointer;` +
-        `font:inherit;color:#0e1116;background:${bgColor}`;
-      return b;
-    };
-    const yes = mkBtn(chrome.i18n.getMessage("voteYes"), "#4ade80");
-    const no = mkBtn(chrome.i18n.getMessage("voteNo"), "#94a3b8");
+    const yes = uiBtn(chrome.i18n.getMessage("voteYes"), "#4ade80");
+    const no = uiBtn(chrome.i18n.getMessage("voteNo"), "#94a3b8");
     const done = (vote) => {
       chrome.runtime.sendMessage({ type: "COMMUNITY_VOTE", hostname: HOST, selector: item.selector, vote });
       el.style.outline = oldOutline;
@@ -268,13 +341,18 @@
       const html = htmlSnapshot();
       console.info("[Sentinel] kozmetik: AI'a gönderilen HTML boyutu =", html.length, "karakter");
       if (html.length < 200) return;
-      const out = await chrome.runtime.sendMessage({
-        type: "CLASSIFY_HTML", hostname: HOST, html,
-      });
-      const safe = safeSelectors(out?.selectors || []);
-      console.info("[Sentinel] kozmetik: AI seçicileri =", out?.selectors,
-        "| debug =", out?.debug, "| uygulanan =", safe);
-      if (safe.length) injectCSS(safe);
+      const hideBadge = showScanBadge(); // ziyaretçi analizin sürdüğünü görsün
+      try {
+        const out = await chrome.runtime.sendMessage({
+          type: "CLASSIFY_HTML", hostname: HOST, html,
+        });
+        const safe = safeSelectors(out?.selectors || []);
+        console.info("[Sentinel] kozmetik: AI seçicileri =", out?.selectors,
+          "| debug =", out?.debug, "| uygulanan =", safe);
+        if (safe.length) injectCSS(safe);
+      } finally {
+        hideBadge();
+      }
     }, 2500);
   }
 
