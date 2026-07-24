@@ -422,32 +422,37 @@ async function classifyElements(hostname, samples) {
 
   if (!samples?.length) return [];
 
-  const prompt = `You generate CSS selectors for an ad blocker's cosmetic filtering.
-You are given sampled DOM elements from "${hostname}". Each sample has:
-  tag, id, cls (class attribute), src (iframe/img source host),
-  href (host of the OUTBOUND link the element points to — strong ad signal),
-  txt (visible text), w/h (pixel size), x/y (page position — ads cluster in
-  top bars, side columns and between content sections).
-Return selectors that hide ONLY advertisement/sponsor containers — including
-first-party promo banners that link out to advertiser sites. Signals of an ad:
-outbound href to a commercial site, marketing text (discount, buy, campaign;
-Turkish: "reklam", "indirim", "kampanya", "sponsor"), typical banner sizes.
-You may use attribute selectors like a[href*="advertiser.com"] or [class*="reklam"].
-Never hide navigation, search, articles, media players or layout wrappers.
-If unsure about an element, omit it. Respond ONLY as JSON:
-{"selectors": ["...", ...]} (max 12).
+  // AI seçici İCAT ETMEZ: elementler content script'te numaralanır ve kararlı
+  // CSS yolları (sel) üretilir. AI yalnızca hangi indekslerin reklam olduğunu
+  // söyler; biz indeksleri hazır yollara eşleriz. (Geniş/yanlış seçici riski yok.)
+  const forAI = samples.map(({ sel, ...rest }) => rest); // sel AI'a gitmez
+  const prompt = `You are an ad-detection assistant for a browser ad blocker's cosmetic filtering.
+Below are sampled page elements from "${hostname}" as JSON. Each has:
+  i (index), tag, id, cls, src (iframe/img host), href (link target URL —
+  redirect paths like /out/, /go/, /reklam/ are strong ad signals),
+  bg (has CSS background image), txt (visible text), w/h (pixel size),
+  x/y (page position — ads cluster in top bars, side columns, between sections).
+Decide which elements are advertisement / sponsor / promo content to hide.
+Ad signals: links to commercial or advertiser sites, marketing language
+(discount, buy, campaign; Turkish: "reklam", "indirim", "kampanya", "sponsor",
+"komisyon", "satın al"), banner geometry (full-width thin bars at the top,
+tall side-column boxes, 728x90 / 300x250 / 300x600-like sizes), image-only links.
+NOT ads: navigation, logo, search, login/register buttons, forum thread lists,
+article content, comments, footers, cookie notices.
+If unsure about an element, do NOT include it. Respond ONLY as JSON:
+{"hide": [indices]}.
 
 Elements:
-${JSON.stringify(samples).slice(0, 8000)}`;
+${JSON.stringify(forAI).slice(0, 9000)}`;
 
   try {
     const parsed = await callLLM(prompt);
     if (!parsed) return [];
-    const selectors = (parsed.selectors || [])
-      .filter(s => typeof s === "string" && s.length < 200
-        && !/^(body|html|#root|#app|main|video|iframe|img|a)$/i.test(s.trim())
-        && !/\b(video|player|ytp|html5)\b/i.test(s)) // oynatıcı hedefleyen seçicileri reddet
-      .slice(0, 12);
+    const hide = new Set((parsed.hide || []).filter(n => Number.isInteger(n)));
+    const selectors = samples
+      .filter(s => hide.has(s.i) && typeof s.sel === "string" && s.sel.length < 300)
+      .map(s => s.sel)
+      .slice(0, 15);
     cosmetic[hostname] = { selectors, ts: Date.now() };
     await setLocal({ cosmetic });
     return selectors;
