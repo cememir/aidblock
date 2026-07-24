@@ -55,22 +55,34 @@
     try { return new URL(url, location.href).hostname; } catch { return undefined; }
   }
 
-  /** Element için kararlı, tekil CSS yolu üretir (id varsa kısalır). */
+  /**
+   * Element için kararlı, tekil CSS yolu üretir (id varsa kısalır).
+   * DİKKAT: "body > " öneki YALNIZCA zincir gerçekten body'ye ulaştıysa
+   * eklenir — aksi halde derin DOM'larda hiçbir şeyle eşleşmeyen ölü
+   * seçiciler üretilir (r10.net hatası buydu).
+   */
   function cssPath(el) {
     if (el.id) return `#${CSS.escape(el.id)}`;
     const parts = [];
     let node = el;
-    while (node && node.nodeType === 1 && node !== document.body && parts.length < 7) {
-      let sel = node.tagName.toLowerCase();
+    while (node && node.nodeType === 1 && node !== document.body && parts.length < 14) {
       const p = node.parentElement;
       if (!p) break;
       const idx = Array.prototype.indexOf.call(p.children, node) + 1;
-      parts.unshift(`${sel}:nth-child(${idx})`);
+      parts.unshift(`${node.tagName.toLowerCase()}:nth-child(${idx})`);
       if (p.id) { parts.unshift(`#${CSS.escape(p.id)}`); return parts.join(" > "); }
       node = p;
     }
-    parts.unshift("body");
+    if (node === document.body) parts.unshift("body");
     return parts.join(" > ");
+  }
+
+  /** Yol gerçekten bu elemente (ve yalnızca ona) çözülüyor mu? */
+  function pathResolves(sel, el) {
+    try {
+      const found = document.querySelectorAll(sel);
+      return found.length === 1 && found[0] === el;
+    } catch { return false; }
   }
 
   // class/id token'ı reklamla ilişkili mi? (kelime sınırlı — "header"/"thread"
@@ -148,12 +160,16 @@
       if (r.width < 50 || r.height < 30) return;
       if (r.width * r.height > innerWidth * innerHeight * 0.5) return; // dev sarmalayıcıları alma
       seen.add(el);
+      // Yol bu elemente tekil çözülmüyorsa örneğe alma — AI "gizle" dese de
+      // seçici ya hiçbir şeyi ya da yanlış şeyi gizler
+      const sel = cssPath(el);
+      if (!pathResolves(sel, el)) return;
       const a = el.closest("a[href]") || (el.querySelector ? el.querySelector("a[href]") : null);
       let href;
       try { href = a ? new URL(a.href, location.href).href.slice(0, 100) : undefined; } catch {}
       samples.push({
         i: samples.length,
-        sel: cssPath(el),
+        sel,
         tag: el.tagName.toLowerCase(),
         id: el.id?.slice(0, 60) || undefined,
         cls: (typeof el.className === "string" ? el.className : "").slice(0, 100) || undefined,
