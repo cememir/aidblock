@@ -20,6 +20,13 @@ Kendi kendine öğrenen, yapay zekâ destekli, sıfır-ayar reklam engelleyici.
 5. **Kozmetik filtre** — Ağdan engellenemeyen sayfa-içi reklam kutuları için siteye özel
    CSS seçicileri AI'dan bir kez alınır, 7 gün hostname bazında cache'lenir. Seçiciler
    çalışma anında güvenlik testinden geçer; video oynatıcıyı veya sayfa düzenini asla gizleyemez.
+6. **Sağ tık ile engelleme** — Herhangi bir öğeye sağ tıklayın → *"Sentinel: bu öğeyi
+   reklam olarak engelle"*. Kural siteye özel kaydedilir ve her ziyarette yeniden uygulanır.
+7. **Topluluk kuralları (opsiyonel)** — Sağ tık engellemeleri anonim olarak (yalnızca
+   alan adı + CSS seçici) kendi barındırabileceğiniz topluluk sunucusuyla
+   ([`server/main.py`](server/main.py)) paylaşılabilir. Net puanı **+3**'e ulaşan kurallar
+   herkeste otomatik uygulanır; düşük puanlı kurallar diğer kullanıcılara önce evet/hayır
+   oyu olarak gösterilir. Ayarlarda API adresi girilmedikçe tamamen kapalıdır.
 
 ## Desteklenen AI sağlayıcıları
 

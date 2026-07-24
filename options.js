@@ -27,12 +27,15 @@ function setStatus(text, cls) {
 }
 
 async function load() {
-  const { aiProvider = "openai", aiKeys = {} } = await chrome.storage.local.get(["aiProvider", "aiKeys"]);
+  const { aiProvider = "openai", aiKeys = {}, communityApi = "", communityShare = true } =
+    await chrome.storage.local.get(["aiProvider", "aiKeys", "communityApi", "communityShare"]);
   const radio = document.querySelector(`input[name="provider"][value="${aiProvider}"]`);
   if (radio) radio.checked = true;
   for (const p of PROVIDER_IDS) {
     $(`#key-${p}`).value = aiKeys[p] || "";
   }
+  $("#communityApi").value = communityApi;
+  $("#communityShare").checked = !!communityShare;
 }
 
 async function save() {
@@ -42,7 +45,9 @@ async function save() {
     if (v) aiKeys[p] = v;
   }
   const aiProvider = selectedProvider();
-  await chrome.storage.local.set({ aiProvider, aiKeys });
+  const communityApi = $("#communityApi").value.trim();
+  const communityShare = $("#communityShare").checked;
+  await chrome.storage.local.set({ aiProvider, aiKeys, communityApi, communityShare });
   if (!aiKeys[aiProvider]) {
     setStatus(chrome.i18n.getMessage("optSavedNoKey"), "warn");
   } else {

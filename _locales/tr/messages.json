@@ -25,6 +25,16 @@
   "optTestOk": { "message": "Anahtar çalışıyor — AI sınıflandırma hazır." },
   "optTestFail": { "message": "Anahtar testi başarısız:" },
 
+  "ctxBlock": { "message": "Sentinel: bu öğeyi reklam olarak engelle" },
+  "votePromptText": { "message": "Başka bir Sentinel kullanıcısı vurgulanan öğeyi reklam olarak işaretledi. Sizce reklam mı?" },
+  "voteYes": { "message": "Evet, gizle" },
+  "voteNo": { "message": "Hayır" },
+
+  "optCommunityTitle": { "message": "Topluluk kuralları (opsiyonel)" },
+  "optCommunityApiPh": { "message": "Topluluk API adresi (boş = kapalı)" },
+  "optCommunityShare": { "message": "Sağ tık engellemelerimi anonim paylaş ve başkalarının kurallarını oyla" },
+  "optCommunityHint": { "message": "Yalnızca site alan adı ve CSS seçici gönderilir — gezinme geçmişi, anahtar veya kimlik bilgisi asla gönderilmez. Net puanı +3 olan kurallar otomatik uygulanır; düşük puanlı kurallar önce kullanıcılara evet/hayır sorusu olarak gösterilir." },
+
   "secTitle": { "message": "Güvenlik ve gizlilik" },
   "sec1": { "message": "API anahtarınız yalnızca bu tarayıcıda saklanır (chrome.storage.local). Asla senkronize edilmez, kaydedilmez veya paylaşılmaz — eklentinin arka uç sunucusu yoktur." },
   "sec2": { "message": "Anahtar, yalnızca seçtiğiniz sağlayıcının resmi API'sine, HTTPS üzerinden ve sadece reklam alan adlarını sınıflandırmak için gönderilir. Gezinme geçmişi toplanmaz." },

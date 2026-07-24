@@ -20,6 +20,13 @@ Self-learning, AI-powered, zero-config ad blocker.
 5. **Cosmetic filtering** — Leftover in-page ad boxes are hidden with site-specific CSS
    selectors generated once by AI and cached per hostname for 7 days. Selectors pass a
    runtime safety check so they can never hide video players or page layout.
+6. **Right-click blocking** — Right-click any element → *"Sentinel: block this element as an ad"*.
+   The rule is saved per-site and re-applied on every visit.
+7. **Community rules (optional)** — Right-click blocks can be shared anonymously
+   (hostname + CSS selector only) with a self-hostable community server
+   ([`server/main.py`](server/main.py)). Rules reaching a net score of **+3** are applied
+   automatically for everyone; lower-scored rules are shown to other users as a
+   yes/no vote first. Disabled unless an API URL is set in the settings.
 
 ## Supported AI providers
 

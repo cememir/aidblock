@@ -115,6 +115,16 @@
     <input type="password" id="key-claude" data-i18n-ph="keyPlaceholder" autocomplete="off" spellcheck="false" />
   </label>
 
+  <h2 data-i18n="optCommunityTitle"></h2>
+  <div class="provider" style="cursor:default">
+    <input type="url" id="communityApi" data-i18n-ph="optCommunityApiPh" autocomplete="off" spellcheck="false" />
+    <label class="row" style="margin-top:8px;gap:8px;cursor:pointer">
+      <input type="checkbox" id="communityShare" checked />
+      <span data-i18n="optCommunityShare"></span>
+    </label>
+    <p class="intro" style="margin:8px 0 0;font-size:12px" data-i18n="optCommunityHint"></p>
+  </div>
+
   <div class="actions">
     <button id="save" data-i18n="optSave"></button>
     <button id="test" data-i18n="optTest"></button>

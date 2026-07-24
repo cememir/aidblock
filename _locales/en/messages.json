@@ -25,6 +25,16 @@
   "optTestOk": { "message": "Key works — AI classification is ready." },
   "optTestFail": { "message": "Key test failed:" },
 
+  "ctxBlock": { "message": "Sentinel: block this element as an ad" },
+  "votePromptText": { "message": "Another Sentinel user marked the highlighted element as an ad. Is it an ad?" },
+  "voteYes": { "message": "Yes, hide it" },
+  "voteNo": { "message": "No" },
+
+  "optCommunityTitle": { "message": "Community rules (optional)" },
+  "optCommunityApiPh": { "message": "Community API URL (empty = disabled)" },
+  "optCommunityShare": { "message": "Share my right-click blocks anonymously and vote on others' rules" },
+  "optCommunityHint": { "message": "Only the site hostname and the CSS selector are ever sent — no browsing history, no keys, no identifiers. Rules with a net score of +3 are applied automatically; lower-scored rules are shown to users as a yes/no question first." },
+
   "secTitle": { "message": "Security & privacy" },
   "sec1": { "message": "Your API key is stored only in this browser (chrome.storage.local). It is never synced, logged or shared — the extension has no backend server." },
   "sec2": { "message": "The key is sent exclusively to the official API of the provider you selected, over HTTPS, and only to classify ad domains. No browsing history is collected." },

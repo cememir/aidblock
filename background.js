@@ -432,6 +432,8 @@ async function classifyElements(hostname, samples) {
 Below are sampled page elements from "${hostname}" as JSON. Each has:
   i (index), tag, id, cls, src (iframe/img host), href (link target URL —
   redirect paths like /out/, /go/, /reklam/ are strong ad signals),
+  rel (link rel attribute — "nofollow"/"sponsored" on image links is a strong ad signal),
+  lbl (element carries a visible ad label like "Reklam"/"Sponsorlu"/"Sponsored" — near-certain ad),
   bg (has CSS background image), txt (visible text), w/h (pixel size),
   x/y (page position — ads cluster in top bars, side columns, between sections).
 Decide which elements are advertisement / sponsor / promo content to hide.
@@ -475,6 +477,103 @@ ${JSON.stringify(forAI).slice(0, 9000)}`;
     return { selectors: [], debug: "hata: " + String(e && e.message || e) };
   }
 }
+
+// ---------------------------------------------------------------- topluluk kuralları
+
+/**
+ * Topluluk katmanı: kullanıcı sağ tıkla bir reklamı engellediğinde kural
+ * (yalnızca hostname + CSS seçici — başka hiçbir veri yok) opsiyonel topluluk
+ * API'sine raporlanır. Diğer kullanıcılarda net puanı eşiği geçen kurallar
+ * otomatik uygulanır; düşük puanlılar sayfada oy sorusu olarak gösterilir.
+ * API adresi ayarlardan girilir; boşsa özellik tamamen kapalıdır.
+ */
+const COMMUNITY_TTL_MS = 12 * 60 * 60 * 1000; // kural listesi önbelleği
+const COMMUNITY_APPROVE_SCORE = 3;            // bu puan ve üstü otomatik uygulanır
+
+async function getCommunityCfg() {
+  const { communityApi = "", communityShare = true } = await getLocal(["communityApi", "communityShare"]);
+  return { api: String(communityApi).trim().replace(/\/+$/, ""), share: !!communityShare };
+}
+
+async function communityPost(path, body) {
+  const { api, share } = await getCommunityCfg();
+  if (!api || !share) return false;
+  try {
+    const res = await fetch(api + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn("[Sentinel] topluluk API erişilemedi:", e);
+    return false;
+  }
+}
+
+async function communityRules(hostname) {
+  const { api } = await getCommunityCfg();
+  if (!api) return null;
+  const { communityCache = {} } = await getLocal("communityCache");
+  const hit = communityCache[hostname];
+  if (hit && Date.now() - hit.ts < COMMUNITY_TTL_MS) return hit.data;
+  try {
+    const res = await fetch(`${api}/rules/${encodeURIComponent(hostname)}`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const list = await res.json(); // [{selector, score}]
+    const rows = Array.isArray(list) ? list.filter(r => typeof r?.selector === "string" && r.selector.length < 300) : [];
+    const data = {
+      approved: rows.filter(r => (r.score | 0) >= COMMUNITY_APPROVE_SCORE).map(r => r.selector).slice(0, 25),
+      pending: rows.filter(r => (r.score | 0) < COMMUNITY_APPROVE_SCORE)
+        .map(r => ({ selector: r.selector, score: r.score | 0 })).slice(0, 10),
+    };
+    communityCache[hostname] = { data, ts: Date.now() };
+    await setLocal({ communityCache });
+    return data;
+  } catch (e) {
+    console.warn("[Sentinel] topluluk kuralları alınamadı:", e);
+    return hit?.data || null;
+  }
+}
+
+/** Kullanıcının kendi sağ-tık kuralını kaydeder ve topluluğa raporlar. */
+async function saveUserRule(hostname, selector) {
+  const { userCosmetic = {} } = await getLocal("userCosmetic");
+  const list = userCosmetic[hostname] || [];
+  if (!list.includes(selector)) {
+    list.push(selector);
+    userCosmetic[hostname] = list.slice(-40);
+    await setLocal({ userCosmetic });
+  }
+  communityPost("/report", { host: hostname, selector }); // arka planda, beklenmez
+}
+
+/** Aynı kurala tekrar oy sorulmasın diye yerel oy kaydı tutulur. */
+async function recordVote(hostname, selector, vote) {
+  const { communityVoted = {} } = await getLocal("communityVoted");
+  (communityVoted[hostname] ||= {})[selector] = vote;
+  await setLocal({ communityVoted });
+  await communityPost("/vote", { host: hostname, selector, vote });
+}
+
+// ---------------------------------------------------------------- sağ tık menüsü
+
+function setupContextMenu() {
+  chrome.contextMenus.create(
+    {
+      id: "sentinel-block-element",
+      title: chrome.i18n.getMessage("ctxBlock"),
+      contexts: ["all"],
+    },
+    () => void chrome.runtime.lastError // "duplicate id" hatasını yut
+  );
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "sentinel-block-element" && tab?.id) {
+    chrome.tabs.sendMessage(tab.id, { type: "CONTEXT_BLOCK" }).catch(() => {});
+  }
+});
 
 // ---------------------------------------------------------------- mesajlaşma
 
@@ -526,14 +625,51 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case "GET_COSMETIC": {
-        if (!(await isEnabled()) || isNoCosmeticHost(msg.hostname)) {
-          sendResponse({ selectors: [], cached: true });
+        if (!(await isEnabled())) {
+          sendResponse({ selectors: [], cached: true, userSelectors: [], community: null });
           break;
         }
-        const { cosmetic = {} } = await getLocal("cosmetic");
+        const { cosmetic = {}, userCosmetic = {}, communityVoted = {} } =
+          await getLocal(["cosmetic", "userCosmetic", "communityVoted"]);
+        if (isNoCosmeticHost(msg.hostname)) {
+          // AI/topluluk kozmetiği kapalı; kullanıcının KENDİ sağ tık kuralları
+          // yine de uygulanır (bilinçli tercih)
+          sendResponse({ selectors: [], cached: true, userSelectors: userCosmetic[msg.hostname] || [], community: null });
+          break;
+        }
         const hit = cosmetic[msg.hostname];
         const fresh = cosmeticFresh(hit);
-        sendResponse({ selectors: fresh ? hit.selectors : null, cached: fresh });
+
+        // Topluluk kuralları: oyu verilmiş "beklemede" kuralları tekrar sorma
+        let community = await communityRules(msg.hostname);
+        if (community) {
+          const voted = communityVoted[msg.hostname] || {};
+          community = {
+            approved: community.approved,
+            pending: community.pending.filter(p => !(p.selector in voted)),
+          };
+        }
+        sendResponse({
+          selectors: fresh ? hit.selectors : null,
+          cached: fresh,
+          userSelectors: userCosmetic[msg.hostname] || [],
+          community,
+        });
+        break;
+      }
+      case "SAVE_USER_RULE": {
+        // Sağ tık → "reklamı engelle": kural yerel kaydedilir + topluluğa raporlanır
+        if (typeof msg.selector === "string" && msg.selector.length < 300) {
+          await saveUserRule(msg.hostname, msg.selector);
+        }
+        sendResponse({ ok: true });
+        break;
+      }
+      case "COMMUNITY_VOTE": {
+        // Beklemedeki topluluk kuralı için kullanıcı oyu (+1 reklam / -1 değil)
+        const vote = msg.vote > 0 ? 1 : -1;
+        await recordVote(msg.hostname, msg.selector, vote);
+        sendResponse({ ok: true });
         break;
       }
       case "CLASSIFY_ELEMENTS": {
@@ -561,6 +697,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(async (details) => {
   await setLocal({ enabled: true });
   chrome.alarms.create(FLUSH_ALARM, { periodInMinutes: 1 }); // SW uyusa da kuyruk boşalır
+  setupContextMenu();
 
   // Migrasyon: hatalı block kararlarını sil, kozmetik önbelleği sıfırla ve
   // tüm dinamik kuralları yeni şemayla (domainType: thirdParty) yeniden kur
