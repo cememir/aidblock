@@ -177,7 +177,8 @@
         type: "CLASSIFY_ELEMENTS", hostname: HOST, samples,
       });
       const safe = safeSelectors(out?.selectors || []);
-      console.info("[Sentinel] kozmetik: AI seçicileri =", out?.selectors, "| uygulanan =", safe);
+      console.info("[Sentinel] kozmetik: AI seçicileri =", out?.selectors,
+        "| debug =", out?.debug, "| uygulanan =", safe);
       if (safe.length) injectCSS(safe);
     }, 2500);
   }

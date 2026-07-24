@@ -9,6 +9,7 @@
   "cachedVerdicts": { "message": "önbellekli karar" },
   "blockedByAI": { "message": "alan adı AI engel listesinde" },
   "clearCache": { "message": "Önbelleği temizle" },
+  "rescanSite": { "message": "Bu siteyi yeniden tara" },
   "keyWarn": { "message": "API anahtarı girilmemiş — yalnızca temel engel listesi çalışıyor." },
   "openSettings": { "message": "Ayarları aç" },
 

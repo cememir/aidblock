@@ -35,6 +35,16 @@ $("toggle").addEventListener("change", async (e) => {
   await reloadActiveTab();
 });
 
+// Bu sitenin kozmetik önbelleğini silip sayfayı yeniler — AI siteyi yeniden tarar
+$("rescan").addEventListener("click", async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !/^https?:/.test(tab.url || "")) return;
+  const host = new URL(tab.url).hostname.replace(/^www\./, "");
+  await chrome.runtime.sendMessage({ type: "RESCAN_HOST", hostname: host });
+  chrome.tabs.reload(tab.id);
+  window.close();
+});
+
 $("clearCache").addEventListener("click", async () => {
   await chrome.runtime.sendMessage({ type: "CLEAR_CACHE" });
   refresh();

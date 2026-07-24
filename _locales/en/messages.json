@@ -9,6 +9,7 @@
   "cachedVerdicts": { "message": "cached verdicts" },
   "blockedByAI": { "message": "domains blocked by AI" },
   "clearCache": { "message": "Clear cache" },
+  "rescanSite": { "message": "Rescan this site" },
   "keyWarn": { "message": "No API key set — only the basic blocklist is active." },
   "openSettings": { "message": "Open settings" },
 

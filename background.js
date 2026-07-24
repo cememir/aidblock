@@ -414,13 +414,15 @@ function cosmeticFresh(hit) {
 }
 
 async function classifyElements(hostname, samples) {
-  if (isNoCosmeticHost(hostname)) return []; // video/webapp siteleri: AI kozmetiği kapalı
+  if (isNoCosmeticHost(hostname)) {
+    return { selectors: [], debug: "kozmetik-kapali-site" }; // video/webapp siteleri
+  }
 
   const { cosmetic = {} } = await getLocal("cosmetic");
   const hit = cosmetic[hostname];
-  if (cosmeticFresh(hit)) return hit.selectors; // CACHE
+  if (cosmeticFresh(hit)) return { selectors: hit.selectors, debug: "cache" };
 
-  if (!samples?.length) return [];
+  if (!samples?.length) return { selectors: [], debug: "ornek-yok" };
 
   // AI seçici İCAT ETMEZ: elementler content script'te numaralanır ve kararlı
   // CSS yolları (sel) üretilir. AI yalnızca hangi indekslerin reklam olduğunu
@@ -447,18 +449,30 @@ ${JSON.stringify(forAI).slice(0, 9000)}`;
 
   try {
     const parsed = await callLLM(prompt);
-    if (!parsed) return [];
-    const hide = new Set((parsed.hide || []).filter(n => Number.isInteger(n)));
+    if (!parsed) return { selectors: [], debug: "anahtar-yok" };
+
+    const hideRaw = parsed.hide ?? parsed.indices ?? parsed.ads;
+    if (!Array.isArray(hideRaw)) {
+      // Beklenen alan yok → model formata uymadı; CACHE'LEME, sonraki sayfada tekrar dene
+      return { selectors: [], debug: "hide-alani-yok: " + JSON.stringify(parsed).slice(0, 300) };
+    }
+    // Toleranslı ayrıştırma: model indeksleri "3" (string) veya {i:3} olarak dönebilir
+    const hide = new Set(
+      hideRaw
+        .map((n) => (typeof n === "object" && n !== null ? n.i ?? n.index : n))
+        .map(Number)
+        .filter(Number.isInteger)
+    );
     const selectors = samples
-      .filter(s => hide.has(s.i) && typeof s.sel === "string" && s.sel.length < 300)
+      .filter(s => hide.has(Number(s.i)) && typeof s.sel === "string" && s.sel.length < 300)
       .map(s => s.sel)
       .slice(0, 15);
     cosmetic[hostname] = { selectors, ts: Date.now() };
     await setLocal({ cosmetic });
-    return selectors;
+    return { selectors, debug: `ai-hide=${JSON.stringify([...hide])}` };
   } catch (e) {
     console.warn("[Sentinel] Kozmetik sınıflandırma hatası:", e);
-    return [];
+    return { selectors: [], debug: "hata: " + String(e && e.message || e) };
   }
 }
 
@@ -523,8 +537,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case "CLASSIFY_ELEMENTS": {
-        const selectors = await classifyElements(msg.hostname, msg.samples);
-        sendResponse({ selectors });
+        const r = await classifyElements(msg.hostname, msg.samples);
+        sendResponse({ selectors: r.selectors, debug: r.debug });
+        break;
+      }
+      case "RESCAN_HOST": {
+        // Popup'taki "Bu siteyi yeniden tara": sitenin kozmetik önbelleğini sil
+        const { cosmetic = {} } = await getLocal("cosmetic");
+        delete cosmetic[msg.hostname];
+        await setLocal({ cosmetic });
+        sendResponse({ ok: true });
         break;
       }
       default:
