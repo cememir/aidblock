@@ -155,11 +155,21 @@
       t.nodeValue = s.length > 70 ? s.slice(0, 70) + "…" : s;
     }
 
-    // Uzun attribute'ları kısalt (style, srcset, data-url'ler...)
+    // Uzun attribute'ları kısalt (style, srcset, data-url'ler...).
+    // sandbox/allow gibi TOKEN LİSTESİ attribute'ları kısaltılMAZ — ortadan
+    // kesilen token ("allow-popups-to-escape-sandbo") tarayıcı klonda bile
+    // ayrıştırdığı için konsola hata yazar; AI'ya gerek de yok, silinir.
     clone.querySelectorAll("*").forEach((el) => {
       for (const attr of [...el.attributes]) {
-        if (attr.value.length > 120) el.setAttribute(attr.name, attr.value.slice(0, 120));
-        if (attr.name === "style" && attr.value.length > 60) el.setAttribute("style", attr.value.slice(0, 60));
+        try {
+          if (attr.name === "sandbox" || attr.name === "allow" || attr.name === "srcset") {
+            el.removeAttribute(attr.name);
+          } else if (attr.name === "style" && attr.value.length > 60) {
+            el.setAttribute("style", attr.value.slice(0, 60));
+          } else if (attr.value.length > 120) {
+            el.setAttribute(attr.name, attr.value.slice(0, 120));
+          }
+        } catch { el.removeAttribute(attr.name); }
       }
     });
 
