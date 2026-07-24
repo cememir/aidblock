@@ -646,7 +646,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (isNoCosmeticHost(msg.hostname)) {
           // AI/topluluk kozmetiği kapalı; kullanıcının KENDİ sağ tık kuralları
           // yine de uygulanır (bilinçli tercih)
-          sendResponse({ selectors: [], cached: true, userSelectors: userCosmetic[msg.hostname] || [], community: null });
+          sendResponse({ selectors: [], cached: true, noCosmetic: true, userSelectors: userCosmetic[msg.hostname] || [], community: null });
           break;
         }
         const hit = cosmetic[msg.hostname];

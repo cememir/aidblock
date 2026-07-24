@@ -102,6 +102,38 @@
     return cur;
   }
 
+  // ---- Deterministik banner katmanı (AI'sız) ----
+  // IAB standart banner boyutları: bu boyutlardaki nofollow/sponsored görsel
+  // linkler pratikte her zaman reklamdır (forumlar dahil).
+  const BANNER_SIZES = [
+    [728, 90], [728, 91], [970, 90], [970, 250], [468, 60], [320, 50],
+    [300, 250], [336, 280], [300, 600], [160, 600], [120, 600], [250, 250],
+  ];
+  function isBannerSize(w, h) {
+    return BANNER_SIZES.some(([bw, bh]) => Math.abs(w - bw) <= 12 && Math.abs(h - bh) <= 12);
+  }
+
+  /**
+   * rel=nofollow/sponsored bir linkin içindeki görsel standart banner
+   * boyutundaysa sarmalayıcısıyla birlikte gizler. Lazyload görseller geç
+   * boyutlandığı için iki kez (erken + geç) çağrılır.
+   */
+  function hideBannerLinks() {
+    let n = 0;
+    document.querySelectorAll('a[rel~="nofollow"] img, a[rel~="sponsored"] img').forEach((img) => {
+      const a = img.closest("a");
+      if (!a || a.dataset.sentinelBanner) return;
+      const r = img.getBoundingClientRect();
+      const w = r.width || img.width, h = r.height || img.height;
+      if (!isBannerSize(w, h)) return;
+      a.dataset.sentinelBanner = "1";
+      const wrap = climbWrapper(a);
+      wrap.style.setProperty("display", "none", "important");
+      n++;
+    });
+    if (n) console.info("[Sentinel] banner-link:", n, "nofollow banner gizlendi");
+  }
+
   /**
    * Sayfanın sadeleştirilmiş HTML anlık görüntüsünü üretir — AI'a gönderilir.
    * script/style/svg vb. atılır, metinler ve uzun attribute'lar kısaltılır;
@@ -203,6 +235,13 @@
 
     // Kullanıcının sağ tıkla engelledikleri: kendi seçimi olduğundan guard'sız uygulanır
     if (res?.userSelectors?.length) injectCSS(res.userSelectors);
+
+    // Deterministik banner katmanı: nofollow + standart boyut = reklam.
+    // Lazyload görseller geç boyutlanır → erken ve geç iki geçiş.
+    if (!res?.noCosmetic) {
+      hideBannerLinks();
+      setTimeout(hideBannerLinks, 3500);
+    }
 
     // Topluluk kuralları: onaylılar guard'dan geçirilip uygulanır,
     // beklemedekiler için (varsa) tek bir oy sorusu gösterilir
