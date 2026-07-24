@@ -14,8 +14,9 @@ STAMP=$(python3 - <<'PY'
 import json, datetime
 now = datetime.datetime.now()
 version_name = now.strftime("%Y%m%d.%H%M%S")
-# Chrome: 1-4 nokta ayrılmış parça, her biri 0-65535 → YYYY.MDD.HHMM.SS
-version = f"{now.year}.{now.month}{now.day:02d}.{now.hour}{now.minute:02d}.{now.second:02d}"
+# Chrome: 1-4 nokta ayrılmış parça, her biri 0-65535 ve baştaki sıfır YASAK →
+# her parça düz tam sayı üretilir: YYYY.(M*100+DD).(HH*100+MM).SS
+version = f"{now.year}.{now.month * 100 + now.day}.{now.hour * 100 + now.minute}.{now.second}"
 m = json.load(open("manifest.json", encoding="utf-8"))
 m["version"] = version
 m["version_name"] = version_name
