@@ -7,7 +7,7 @@ Kendi kendine öğrenen, yapay zekâ destekli, sıfır-ayar reklam engelleyici.
 
 ## Nasıl çalışır?
 
-1. **Anında engelleme** — Bilinen 20 büyük reklam/izleme ağı `rules_static.json` içindeki
+1. **Anında engelleme** — Bilinen 140'tan fazla reklam/izleme ağı `rules_static.json` içindeki
    `declarativeNetRequest` kurallarıyla, AI'a hiç sorulmadan tarayıcı motorunda engellenir.
 2. **AI öğrenmesi** — Sayfalardaki *tanınmayan* üçüncü taraf alan adları kuyruğa alınır ve
    toplu halde (15'erli) seçtiğiniz AI sağlayıcısına tek istekle sorulur: `block` mı `allow` mu?

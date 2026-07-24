@@ -36,7 +36,7 @@ Self-learning AI ad blocker. Blocks known ad networks instantly, learns new ones
 ```
 Sentinel is an ad blocker that maintains its own blocklist — with AI.
 
-Traditional ad blockers depend on huge, hand-maintained filter lists that constantly lag behind new ad networks. Sentinel takes a different approach: a compact built-in list blocks the 20 biggest ad & tracking networks instantly, and everything unknown is classified by AI in the background — once — then cached.
+Traditional ad blockers depend on huge, hand-maintained filter lists that constantly lag behind new ad networks. Sentinel takes a different approach: a built-in list blocks 140+ known ad & tracking networks instantly, and everything unknown is classified by AI in the background — once — then cached.
 
 ⚡ HOW IT WORKS
 • Known ad networks (DoubleClick, Taboola, Criteo, PubMatic…) are blocked at the network layer, before they even load. No AI call needed.
@@ -110,7 +110,7 @@ Kendi kendine öğrenen yapay zekâ destekli reklam engelleyici. Bilinen ağlar�
 ```
 Sentinel, engel listesini yapay zekâ ile kendisi oluşturan bir reklam engelleyicidir.
 
-Geleneksel reklam engelleyiciler, elle güncellenen ve yeni reklam ağlarının hep gerisinde kalan dev filtre listelerine bağımlıdır. Sentinel farklı çalışır: kompakt dahili liste en büyük 20 reklam/izleme ağını anında engeller; tanınmayan her şey arka planda yapay zekâya BİR KEZ sorulur ve sonuç önbelleğe alınır.
+Geleneksel reklam engelleyiciler, elle güncellenen ve yeni reklam ağlarının hep gerisinde kalan dev filtre listelerine bağımlıdır. Sentinel farklı çalışır: dahili liste 140'tan fazla bilinen reklam/izleme ağını anında engeller; tanınmayan her şey arka planda yapay zekâya BİR KEZ sorulur ve sonuç önbelleğe alınır.
 
 ⚡ NASIL ÇALIŞIR?
 • Bilinen reklam ağları (DoubleClick, Taboola, Criteo, PubMatic…) daha yüklenmeden, ağ katmanında engellenir. AI çağrısı gerekmez.
