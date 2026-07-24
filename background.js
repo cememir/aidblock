@@ -16,6 +16,7 @@
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // karar önbelleği: 30 gün
 const COSMETIC_TTL_MS = 7 * 24 * 60 * 60 * 1000; // sayfa seçici önbelleği: 7 gün
+const COSMETIC_EMPTY_TTL_MS = 6 * 60 * 60 * 1000; // boş sonuç: 6 saat sonra tekrar dene
 const BATCH_SIZE = 15;          // bu kadar bilinmeyen domain birikince hemen sor
 const FLUSH_ALARM = "sentinel-flush";
 const RULE_ID_START = 10000;    // dinamik kural id'leri statiklerle çakışmasın
@@ -405,31 +406,47 @@ chrome.webRequest.onErrorOccurred.addListener(
  * Content script'in gönderdiği şüpheli element örneklerinden, sayfada gizlenecek
  * CSS seçicilerini üretir. Sonuç hostname bazında önbelleklenir.
  */
+/** Boş sonuçlar daha kısa süre önbellekte kalır (site sonradan reklam gösterebilir). */
+function cosmeticFresh(hit) {
+  if (!hit) return false;
+  const ttl = hit.selectors?.length ? COSMETIC_TTL_MS : COSMETIC_EMPTY_TTL_MS;
+  return Date.now() - hit.ts < ttl;
+}
+
 async function classifyElements(hostname, samples) {
   if (isNoCosmeticHost(hostname)) return []; // video/webapp siteleri: AI kozmetiği kapalı
 
   const { cosmetic = {} } = await getLocal("cosmetic");
   const hit = cosmetic[hostname];
-  if (hit && Date.now() - hit.ts < COSMETIC_TTL_MS) return hit.selectors; // CACHE
+  if (cosmeticFresh(hit)) return hit.selectors; // CACHE
 
   if (!samples?.length) return [];
 
   const prompt = `You generate CSS selectors for an ad blocker's cosmetic filtering.
-Given sampled DOM elements from "${hostname}", return selectors that hide ONLY
-advertisement containers. Never hide navigation, articles, media players or layout wrappers.
-If unsure about an element, omit it. Respond ONLY as JSON: {"selectors": ["...", ...]} (max 10).
+You are given sampled DOM elements from "${hostname}". Each sample has:
+  tag, id, cls (class attribute), src (iframe/img source host),
+  href (host of the OUTBOUND link the element points to — strong ad signal),
+  txt (visible text), w/h (pixel size).
+Return selectors that hide ONLY advertisement/sponsor containers — including
+first-party promo banners that link out to advertiser sites. Signals of an ad:
+outbound href to a commercial site, marketing text (discount, buy, campaign;
+Turkish: "reklam", "indirim", "kampanya", "sponsor"), typical banner sizes.
+You may use attribute selectors like a[href*="advertiser.com"] or [class*="reklam"].
+Never hide navigation, search, articles, media players or layout wrappers.
+If unsure about an element, omit it. Respond ONLY as JSON:
+{"selectors": ["...", ...]} (max 12).
 
 Elements:
-${JSON.stringify(samples).slice(0, 6000)}`;
+${JSON.stringify(samples).slice(0, 8000)}`;
 
   try {
     const parsed = await callLLM(prompt);
     if (!parsed) return [];
     const selectors = (parsed.selectors || [])
       .filter(s => typeof s === "string" && s.length < 200
-        && !/^(body|html|#root|#app|main|video|iframe|img)$/i.test(s.trim())
+        && !/^(body|html|#root|#app|main|video|iframe|img|a)$/i.test(s.trim())
         && !/\b(video|player|ytp|html5)\b/i.test(s)) // oynatıcı hedefleyen seçicileri reddet
-      .slice(0, 10);
+      .slice(0, 12);
     cosmetic[hostname] = { selectors, ts: Date.now() };
     await setLocal({ cosmetic });
     return selectors;
@@ -495,8 +512,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         const { cosmetic = {} } = await getLocal("cosmetic");
         const hit = cosmetic[msg.hostname];
-        const fresh = hit && Date.now() - hit.ts < COSMETIC_TTL_MS;
-        sendResponse({ selectors: fresh ? hit.selectors : null, cached: !!fresh });
+        const fresh = cosmeticFresh(hit);
+        sendResponse({ selectors: fresh ? hit.selectors : null, cached: fresh });
         break;
       }
       case "CLASSIFY_ELEMENTS": {

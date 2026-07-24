@@ -52,24 +52,50 @@
 
   injectCSS(GENERIC);
 
-  /** AI'a göndermek için şüpheli element örnekleri toplar (küçük, anonim özet). */
+  function hostOf(url) {
+    try { return new URL(url, location.href).hostname; } catch { return undefined; }
+  }
+
+  /**
+   * AI'a göndermek için şüpheli element örnekleri toplar (küçük, anonim özet).
+   * Class kalıplarına ek olarak, dışarıya link veren büyük görseller de örneklenir —
+   * sitelerin kendi sunucusundan servis ettiği sponsor banner'ları (class'sız
+   * <a><img> blokları) ancak böyle yakalanır. href/txt alanları AI'a bağlam verir.
+   */
   function sampleSuspects() {
     const suspects = [];
-    const candidates = document.querySelectorAll(
-      'iframe, [class*="ad"], [id*="ad"], [class*="banner"], [class*="sponsor"], [class*="promo"]'
-    );
-    for (const el of candidates) {
-      if (suspects.length >= 25) break;
+    const seen = new Set();
+
+    function push(el) {
+      if (!el || suspects.length >= 40 || seen.has(el)) return;
       const r = el.getBoundingClientRect();
-      if (r.width < 50 || r.height < 40) continue; // görünmez/ufak şeyleri atla
+      if (r.width < 50 || r.height < 40) return; // görünmez/ufak şeyleri atla
+      seen.add(el);
+      const a = el.closest("a[href]") || (el.querySelector ? el.querySelector("a[href]") : null);
+      const linkHost = a ? hostOf(a.href) : undefined;
       suspects.push({
         tag: el.tagName.toLowerCase(),
         id: el.id?.slice(0, 60) || undefined,
         cls: (typeof el.className === "string" ? el.className : "").slice(0, 120) || undefined,
-        src: el.src ? new URL(el.src, location.href).hostname : undefined,
+        src: el.src ? hostOf(el.src) : undefined,
+        href: linkHost && linkHost !== HOST ? linkHost : undefined, // dış bağlantı hedefi
+        txt: (el.innerText || el.alt || "").trim().replace(/\s+/g, " ").slice(0, 80) || undefined,
         w: Math.round(r.width), h: Math.round(r.height),
       });
     }
+
+    // 1) Bilinen class/id kalıpları (EN + TR)
+    document.querySelectorAll(
+      'iframe, [class*="ad"], [id*="ad"], [class*="banner"], [id*="banner"], ' +
+      '[class*="sponsor"], [class*="promo"], [class*="reklam"], [id*="reklam"]'
+    ).forEach(push);
+
+    // 2) Dış siteye link veren banner boyutlu görseller (self-hosted reklamlar)
+    document.querySelectorAll("a[href] img").forEach((img) => {
+      const r = img.getBoundingClientRect();
+      if (r.width >= 200 && r.height >= 45) push(img.closest("a"));
+    });
+
     return suspects;
   }
 
