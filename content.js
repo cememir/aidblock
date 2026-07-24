@@ -56,18 +56,29 @@
     try { return new URL(url, location.href).hostname; } catch { return undefined; }
   }
 
+  // class/id token'ı reklamla ilişkili mi? (kelime sınırlı — "header"/"thread"
+  // gibi içinde "ad" geçen masum isimler eşleşmez)
+  const AD_TOKEN = /(?:^|[-_])(ads?|advert\w*|adsense|adslot|banner\w*|sponsor\w*|promo(?:ted|tion)?\w*|reklam\w*)(?:[-_]|$)/i;
+
+  function looksAdNamed(el) {
+    const cls = typeof el.className === "string" ? el.className : "";
+    const tokens = (cls + " " + (el.id || "")).split(/\s+/);
+    return tokens.some((t) => t && AD_TOKEN.test(t));
+  }
+
   /**
    * AI'a göndermek için şüpheli element örnekleri toplar (küçük, anonim özet).
-   * Class kalıplarına ek olarak, dışarıya link veren büyük görseller de örneklenir —
-   * sitelerin kendi sunucusundan servis ettiği sponsor banner'ları (class'sız
-   * <a><img> blokları) ancak böyle yakalanır. href/txt alanları AI'a bağlam verir.
+   * Öncelik sırası: (1) dış siteye link veren banner boyutlu görseller —
+   * sitelerin kendi sunucusundan servis ettiği class'sız sponsor banner'ları
+   * ancak böyle yakalanır — (2) reklam isimli class/id taşıyanlar, (3) iframe'ler.
+   * href/txt/x/y alanları AI'a bağlam verir.
    */
   function sampleSuspects() {
     const suspects = [];
     const seen = new Set();
 
     function push(el) {
-      if (!el || suspects.length >= 40 || seen.has(el)) return;
+      if (!el || suspects.length >= 30 || seen.has(el)) return;
       const r = el.getBoundingClientRect();
       if (r.width < 50 || r.height < 40) return; // görünmez/ufak şeyleri atla
       seen.add(el);
@@ -81,20 +92,27 @@
         href: linkHost && linkHost !== HOST ? linkHost : undefined, // dış bağlantı hedefi
         txt: (el.innerText || el.alt || "").trim().replace(/\s+/g, " ").slice(0, 80) || undefined,
         w: Math.round(r.width), h: Math.round(r.height),
+        x: Math.round(r.left), y: Math.round(r.top + scrollY), // sayfadaki konum
       });
     }
 
-    // 1) Bilinen class/id kalıpları (EN + TR)
-    document.querySelectorAll(
-      'iframe, [class*="ad"], [id*="ad"], [class*="banner"], [id*="banner"], ' +
-      '[class*="sponsor"], [class*="promo"], [class*="reklam"], [id*="reklam"]'
-    ).forEach(push);
-
-    // 2) Dış siteye link veren banner boyutlu görseller (self-hosted reklamlar)
+    // 1) EN ÖNCELİKLİ: dış siteye link veren banner boyutlu görseller
     document.querySelectorAll("a[href] img").forEach((img) => {
+      const a = img.closest("a[href]");
+      const host = a ? hostOf(a.href) : null;
+      if (!host || host === HOST) return;
       const r = img.getBoundingClientRect();
-      if (r.width >= 200 && r.height >= 45) push(img.closest("a"));
+      if (r.width >= 150 && r.height >= 40) push(a);
     });
+
+    // 2) Reklam isimli class/id taşıyan elementler (kelime sınırlı eşleşme)
+    for (const el of document.querySelectorAll("[class], [id]")) {
+      if (suspects.length >= 30) break;
+      if (looksAdNamed(el)) push(el);
+    }
+
+    // 3) Boyutlu iframe'ler
+    document.querySelectorAll("iframe").forEach(push);
 
     return suspects;
   }
@@ -102,16 +120,24 @@
   async function run() {
     // 1) Önce cache'e bak (cache'ten gelse bile güvenlik testinden geçir)
     const res = await chrome.runtime.sendMessage({ type: "GET_COSMETIC", hostname: HOST });
-    if (res?.selectors) { injectCSS(safeSelectors(res.selectors)); return; } // cache HIT → AI yok
+    if (res?.selectors) {
+      const safe = safeSelectors(res.selectors);
+      console.info("[Sentinel] kozmetik (cache):", res.selectors.length, "seçici,", safe.length, "uygulandı");
+      injectCSS(safe);
+      return; // cache HIT → AI yok
+    }
 
     // 2) Cache boş → sayfa otursun, örnekle, AI'a bir kez sor
     setTimeout(async () => {
       const samples = sampleSuspects();
+      console.info("[Sentinel] kozmetik: AI'a gönderilen örnek sayısı =", samples.length);
       if (!samples.length) return;
       const out = await chrome.runtime.sendMessage({
         type: "CLASSIFY_ELEMENTS", hostname: HOST, samples,
       });
-      if (out?.selectors?.length) injectCSS(safeSelectors(out.selectors));
+      const safe = safeSelectors(out?.selectors || []);
+      console.info("[Sentinel] kozmetik: AI seçicileri =", out?.selectors, "| uygulanan =", safe);
+      if (safe.length) injectCSS(safe);
     }, 2500);
   }
 

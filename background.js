@@ -426,7 +426,8 @@ async function classifyElements(hostname, samples) {
 You are given sampled DOM elements from "${hostname}". Each sample has:
   tag, id, cls (class attribute), src (iframe/img source host),
   href (host of the OUTBOUND link the element points to — strong ad signal),
-  txt (visible text), w/h (pixel size).
+  txt (visible text), w/h (pixel size), x/y (page position — ads cluster in
+  top bars, side columns and between content sections).
 Return selectors that hide ONLY advertisement/sponsor containers — including
 first-party promo banners that link out to advertiser sites. Signals of an ad:
 outbound href to a commercial site, marketing text (discount, buy, campaign;
