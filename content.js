@@ -26,6 +26,30 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
+  /**
+   * AI seçicileri için güvenlik testi: sayfa içeriğini (video oynatıcı,
+   * ana düzen) gizleyebilecek seçiciler UYGULANMAZ.
+   *  - geçersiz seçici → reddet
+   *  - 15'ten fazla element yakalıyorsa → fazla genel, reddet
+   *  - yakaladığı element video/audio içeriyorsa veya kendisi video ise → reddet
+   *  - element görünür alanın %40'ından fazlasını kaplıyorsa → reddet
+   */
+  function safeSelectors(selectors) {
+    const maxArea = innerWidth * innerHeight * 0.4;
+    return selectors.filter((sel) => {
+      let nodes;
+      try { nodes = document.querySelectorAll(sel); } catch { return false; }
+      if (nodes.length > 15) return false;
+      for (const el of nodes) {
+        if (el.tagName === "VIDEO" || el.tagName === "AUDIO") return false;
+        if (el.querySelector("video, audio")) return false;
+        const r = el.getBoundingClientRect();
+        if (r.width * r.height > maxArea) return false;
+      }
+      return true;
+    });
+  }
+
   injectCSS(GENERIC);
 
   /** AI'a göndermek için şüpheli element örnekleri toplar (küçük, anonim özet). */
@@ -50,9 +74,9 @@
   }
 
   async function run() {
-    // 1) Önce cache'e bak
+    // 1) Önce cache'e bak (cache'ten gelse bile güvenlik testinden geçir)
     const res = await chrome.runtime.sendMessage({ type: "GET_COSMETIC", hostname: HOST });
-    if (res?.selectors) { injectCSS(res.selectors); return; } // cache HIT → AI yok
+    if (res?.selectors) { injectCSS(safeSelectors(res.selectors)); return; } // cache HIT → AI yok
 
     // 2) Cache boş → sayfa otursun, örnekle, AI'a bir kez sor
     setTimeout(async () => {
@@ -61,7 +85,7 @@
       const out = await chrome.runtime.sendMessage({
         type: "CLASSIFY_ELEMENTS", hostname: HOST, samples,
       });
-      if (out?.selectors?.length) injectCSS(out.selectors);
+      if (out?.selectors?.length) injectCSS(safeSelectors(out.selectors));
     }, 2500);
   }
 

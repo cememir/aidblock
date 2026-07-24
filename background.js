@@ -20,13 +20,40 @@ const BATCH_SIZE = 15;          // bu kadar bilinmeyen domain birikince hemen so
 const FLUSH_ALARM = "sentinel-flush";
 const RULE_ID_START = 10000;    // dinamik kural id'leri statiklerle çakışmasın
 
-// Asla engellenmemesi gereken altyapı alan adları (yanlış pozitif sigortası)
+// Asla engellenmemesi gereken alan adları (yanlış pozitif sigortası).
+// Buradaki domainler AI tarafından "block" sayılsa bile engellenmez;
+// mevcut hatalı kararlar purgeProtectedDomains() ile temizlenir.
 const NEVER_BLOCK = new Set([
+  // CDN / altyapı
   "googleapis.com", "gstatic.com", "cloudflare.com", "cloudfront.net",
   "jsdelivr.net", "unpkg.com", "cdnjs.cloudflare.com", "akamaized.net",
-  "fastly.net", "github.io", "githubusercontent.com", "recaptcha.net",
-  "youtube.com", "ytimg.com", "googlevideo.com", "twimg.com", "fbcdn.net",
+  "akamaihd.net", "fastly.net", "github.io", "githubusercontent.com",
+  "recaptcha.net", "amazonaws.com", "windows.net", "gvt1.com", "gvt2.com",
+  // Google servisleri
+  "google.com", "googleusercontent.com", "ggpht.com",
+  "youtube.com", "ytimg.com", "googlevideo.com",
+  // Meta servisleri (pikselleri iframe/istek olarak görülüp yanlışlıkla
+  // engellenirse business.facebook.com gibi birinci taraf uygulamalar kırılır)
+  "facebook.com", "fbcdn.net", "fbsbx.com", "instagram.com",
+  "whatsapp.com", "whatsapp.net", "messenger.com",
+  // Diğer büyük platformlar
+  "twitter.com", "x.com", "twimg.com", "linkedin.com", "licdn.com",
+  "microsoft.com", "live.com", "office.com", "apple.com", "icloud.com",
+  "tiktokcdn.com", "paypal.com", "stripe.com", "gravatar.com", "wp.com",
 ]);
+
+// Bu sitelerde AI kozmetik filtresi ÇALIŞMAZ (video oynatıcı / webapp arayüzü
+// yanlışlıkla gizlenmesin). Genel seçiciler content.js'te yine uygulanır.
+const NO_COSMETIC = [
+  "youtube.com", "twitch.tv", "netflix.com", "vimeo.com", "primevideo.com",
+  "disneyplus.com", "spotify.com", "facebook.com", "messenger.com",
+  "instagram.com", "whatsapp.com", "mail.google.com", "docs.google.com",
+  "drive.google.com", "figma.com", "canva.com",
+];
+
+function isNoCosmeticHost(hostname) {
+  return NO_COSMETIC.some((d) => hostname === d || hostname.endsWith("." + d));
+}
 
 // ---------------------------------------------------------------- AI sağlayıcıları
 
@@ -215,6 +242,10 @@ async function addBlockRules(domains) {
       action: { type: "block" },
       condition: {
         urlFilter: `||${d}^`,
+        // SADECE üçüncü taraf istekleri kes: bir domain başka sitelerde
+        // izleyici olsa bile kendi sitesi (örn. business.facebook.com'da
+        // facebook.com istekleri) asla kırılmaz.
+        domainType: "thirdParty",
         // Ana sayfa gezinmesini asla engelleme; sadece alt kaynakları kes
         resourceTypes: ["script", "image", "sub_frame", "xmlhttprequest", "ping", "media", "font", "websocket", "other"],
       },
@@ -233,6 +264,29 @@ async function removeAllDynamicRules() {
     await chrome.declarativeNetRequest.updateDynamicRules({
       removeRuleIds: rules.map(r => r.id),
     });
+  }
+}
+
+/**
+ * NEVER_BLOCK listesine sonradan eklenen domainler için geçmişte verilmiş
+ * hatalı "block" kararlarını ve kurallarını temizler (migrasyon sigortası).
+ */
+async function purgeProtectedDomains() {
+  const { verdictCache = {}, ruleMap = {} } = await getLocal(["verdictCache", "ruleMap"]);
+  const removeIds = [];
+  let changed = false;
+  for (const d of Object.keys(verdictCache)) {
+    if (NEVER_BLOCK.has(d)) { delete verdictCache[d]; changed = true; }
+  }
+  for (const [d, id] of Object.entries(ruleMap)) {
+    if (NEVER_BLOCK.has(d)) { removeIds.push(id); delete ruleMap[d]; changed = true; }
+  }
+  if (removeIds.length) {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds });
+  }
+  if (changed) {
+    await setLocal({ verdictCache, ruleMap });
+    console.log("[Sentinel] Korunan domain kararları temizlendi:", removeIds.length);
   }
 }
 
@@ -352,6 +406,8 @@ chrome.webRequest.onErrorOccurred.addListener(
  * CSS seçicilerini üretir. Sonuç hostname bazında önbelleklenir.
  */
 async function classifyElements(hostname, samples) {
+  if (isNoCosmeticHost(hostname)) return []; // video/webapp siteleri: AI kozmetiği kapalı
+
   const { cosmetic = {} } = await getLocal("cosmetic");
   const hit = cosmetic[hostname];
   if (hit && Date.now() - hit.ts < COSMETIC_TTL_MS) return hit.selectors; // CACHE
@@ -370,7 +426,9 @@ ${JSON.stringify(samples).slice(0, 6000)}`;
     const parsed = await callLLM(prompt);
     if (!parsed) return [];
     const selectors = (parsed.selectors || [])
-      .filter(s => typeof s === "string" && s.length < 200 && !/^(body|html|#root|#app|main)$/i.test(s.trim()))
+      .filter(s => typeof s === "string" && s.length < 200
+        && !/^(body|html|#root|#app|main|video|iframe|img)$/i.test(s.trim())
+        && !/\b(video|player|ytp|html5)\b/i.test(s)) // oynatıcı hedefleyen seçicileri reddet
       .slice(0, 10);
     cosmetic[hostname] = { selectors, ts: Date.now() };
     await setLocal({ cosmetic });
@@ -431,7 +489,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case "GET_COSMETIC": {
-        if (!(await isEnabled())) { sendResponse({ selectors: [], cached: true }); break; }
+        if (!(await isEnabled()) || isNoCosmeticHost(msg.hostname)) {
+          sendResponse({ selectors: [], cached: true });
+          break;
+        }
         const { cosmetic = {} } = await getLocal("cosmetic");
         const hit = cosmetic[msg.hostname];
         const fresh = hit && Date.now() - hit.ts < COSMETIC_TTL_MS;
@@ -455,6 +516,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(async (details) => {
   await setLocal({ enabled: true });
   chrome.alarms.create(FLUSH_ALARM, { periodInMinutes: 1 }); // SW uyusa da kuyruk boşalır
+
+  // Migrasyon: hatalı block kararlarını sil, kozmetik önbelleği sıfırla ve
+  // tüm dinamik kuralları yeni şemayla (domainType: thirdParty) yeniden kur
+  await purgeProtectedDomains();
+  if (details.reason === "update") {
+    await setLocal({ cosmetic: {} }); // eski (guard'sız) AI seçicilerini at
+    await removeAllDynamicRules();
+    if (await isEnabled()) await rebuildRulesFromCache();
+  }
+
   // İlk kurulumda anahtar yoksa kullanıcıyı doğrudan ayarlar sayfasına götür
   if (details.reason === "install") {
     const { key } = await getAISettings();
