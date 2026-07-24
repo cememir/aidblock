@@ -1,0 +1,8 @@
+.env
+.env.*
+.idea/
+dist/
+*.zip
+.DS_Store
+__pycache__/
+_metadata/

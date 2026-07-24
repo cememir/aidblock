@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b23;
+    --line: #232a35;
+    --text: #dfe6ee;
+    --dim: #7b8794;
+    --accent: #4ade80;      /* koruma aktif */
+    --accent-off: #64748b;  /* koruma kapalı */
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    width: 300px; background: var(--bg); color: var(--text);
+    font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 16px;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  h1 { font-size: 14px; font-weight: 650; letter-spacing: .04em; }
+  h1 small { color: var(--dim); font-weight: 400; letter-spacing: 0; }
+
+  /* Toggle */
+  .switch { position: relative; width: 42px; height: 24px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; cursor: pointer; border-radius: 24px;
+    background: var(--line); transition: background .2s;
+  }
+  .slider::before {
+    content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+    border-radius: 50%; background: var(--dim); transition: transform .2s, background .2s;
+  }
+  input:checked + .slider { background: rgba(74, 222, 128, .18); }
+  input:checked + .slider::before { transform: translateX(18px); background: var(--accent); }
+  input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Durum satırı */
+  .status { display: flex; align-items: center; gap: 8px; color: var(--dim); margin-bottom: 14px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .dot.off { background: var(--accent-off); }
+  .status .prov { margin-left: auto; font-size: 11px; }
+
+  /* İstatistik kartları */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .card .n {
+    font: 600 20px/1 ui-monospace, "SF Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums; margin-bottom: 3px;
+  }
+  .card .l { color: var(--dim); font-size: 11px; }
+  .card.wide { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 10px; }
+  .card.wide .n { font-size: 15px; }
+
+  .warn {
+    display: none; background: rgba(250, 204, 21, .08); border: 1px solid rgba(250, 204, 21, .25);
+    color: #fbbf24; border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-bottom: 12px;
+  }
+  .warn button {
+    display: block; margin-top: 6px; background: none; border: 1px solid rgba(250, 204, 21, .4);
+    color: #fbbf24; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer;
+  }
+
+  .row { display: flex; gap: 8px; }
+  button.ghost {
+    flex: 1; background: none; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--dim); padding: 8px; font: inherit; cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  button.ghost:hover { color: var(--text); border-color: var(--dim); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>SENTINEL <small>AI AdBlock</small></h1>
+    <label class="switch">
+      <input type="checkbox" id="toggle" />
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <div class="status">
+    <span class="dot" id="dot"></span><span id="statusText"></span>
+    <span class="prov" id="provider"></span>
+  </div>
+
+  <div class="warn" id="keyWarn">
+    <span data-i18n="keyWarn"></span>
+    <button id="openOptions" data-i18n="openSettings"></button>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div class="n" id="today">0</div><div class="l" data-i18n="blockedToday"></div></div>
+    <div class="card"><div class="n" id="total">0</div><div class="l" data-i18n="blockedTotal"></div></div>
+    <div class="card wide">
+      <div class="n" id="cache">0</div>
+      <div class="l"><span data-i18n="cachedVerdicts"></span> · <span id="blockedDomains">0</span> <span data-i18n="blockedByAI"></span></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="ghost" id="clearCache" data-i18n="clearCache"></button>
+    <button class="ghost" id="settings" data-i18n="openSettings"></button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

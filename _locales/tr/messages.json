@@ -1,0 +1,32 @@
+{
+  "extName": { "message": "Sentinel — AI AdBlock" },
+  "extDesc": { "message": "Kendi kendine öğrenen yapay zekâ destekli reklam engelleyici. Bilinen ağları anında engeller, yenilerini arka planda öğrenir." },
+
+  "statusActive": { "message": "Koruma aktif" },
+  "statusOff": { "message": "Koruma kapalı" },
+  "blockedToday": { "message": "Bugün engellenen" },
+  "blockedTotal": { "message": "Toplam engellenen" },
+  "cachedVerdicts": { "message": "önbellekli karar" },
+  "blockedByAI": { "message": "alan adı AI engel listesinde" },
+  "clearCache": { "message": "Önbelleği temizle" },
+  "keyWarn": { "message": "API anahtarı girilmemiş — yalnızca temel engel listesi çalışıyor." },
+  "openSettings": { "message": "Ayarları aç" },
+
+  "optIntro": { "message": "Yapay zekâ sağlayıcınızı seçin ve kendi API anahtarınızı yapıştırın. Anahtar tarayıcınızda kalır — yalnızca seçtiğiniz sağlayıcıya gönderilir." },
+  "optProvider": { "message": "Yapay zekâ sağlayıcısı" },
+  "keyPlaceholder": { "message": "API anahtarınızı yapıştırın" },
+  "optSave": { "message": "Kaydet" },
+  "optSaved": { "message": "Kaydedildi — AI sınıflandırma aktif." },
+  "optSavedNoKey": { "message": "Kaydedildi. Seçili sağlayıcı için anahtar yok — yalnızca temel engel listesi çalışacak." },
+  "optTest": { "message": "Anahtarı test et" },
+  "optTesting": { "message": "Test ediliyor…" },
+  "optTestNoKey": { "message": "Önce seçili sağlayıcı için bir anahtar girin." },
+  "optTestOk": { "message": "Anahtar çalışıyor — AI sınıflandırma hazır." },
+  "optTestFail": { "message": "Anahtar testi başarısız:" },
+
+  "secTitle": { "message": "Güvenlik ve gizlilik" },
+  "sec1": { "message": "API anahtarınız yalnızca bu tarayıcıda saklanır (chrome.storage.local). Asla senkronize edilmez, kaydedilmez veya paylaşılmaz — eklentinin arka uç sunucusu yoktur." },
+  "sec2": { "message": "Anahtar, yalnızca seçtiğiniz sağlayıcının resmi API'sine, HTTPS üzerinden ve sadece reklam alan adlarını sınıflandırmak için gönderilir. Gezinme geçmişi toplanmaz." },
+  "sec3": { "message": "Sentinel tamamen açık kaynaklıdır — her satır kod denetlenebilir." },
+  "srcLink": { "message": "Kaynak kodu görüntüle" }
+}

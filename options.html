@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Sentinel — Settings</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b23;
+    --line: #232a35;
+    --text: #dfe6ee;
+    --dim: #7b8794;
+    --accent: #4ade80;
+    --warn: #fbbf24;
+    --err: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  main { width: 100%; max-width: 560px; }
+
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  header img { width: 36px; height: 36px; }
+  h1 { font-size: 20px; font-weight: 650; letter-spacing: .02em; }
+  .intro { color: var(--dim); margin-bottom: 24px; }
+
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--dim); margin: 24px 0 10px; }
+
+  .provider {
+    display: block; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer;
+    transition: border-color .15s;
+  }
+  .provider:has(input[type=radio]:checked) { border-color: var(--accent); }
+  .provider .row { display: flex; align-items: center; gap: 10px; }
+  .provider .name { font-weight: 600; }
+  .provider .model { color: var(--dim); font-size: 12px; margin-left: auto; }
+  .provider input[type=radio] { accent-color: var(--accent); width: 16px; height: 16px; }
+  .provider input[type=password], .provider input[type=text] {
+    width: 100%; margin-top: 10px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; color: var(--text); padding: 9px 12px; font: 13px/1.4 ui-monospace, monospace;
+  }
+  .provider input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  button {
+    border: 0; border-radius: 9px; padding: 10px 20px; font: 600 14px/1 inherit;
+    cursor: pointer; font-family: inherit;
+  }
+  #save { background: var(--accent); color: #0a1810; }
+  #save:hover { filter: brightness(1.1); }
+  #test { background: none; border: 1px solid var(--line); color: var(--dim); }
+  #test:hover { color: var(--text); border-color: var(--dim); }
+
+  #status { margin-top: 14px; font-size: 13px; min-height: 20px; }
+  #status.ok { color: var(--accent); }
+  #status.err { color: var(--err); }
+  #status.warn { color: var(--warn); }
+
+  .security {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; margin-top: 28px;
+  }
+  .security ul { list-style: none; }
+  .security li { display: flex; gap: 10px; color: var(--dim); font-size: 13px; margin-bottom: 10px; }
+  .security li::before { content: "🔒"; }
+  .security li.oss::before { content: "🌐"; }
+  .security li:last-child { margin-bottom: 0; }
+  .security a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icons/icon48.png" alt="" />
+    <h1>SENTINEL <span style="color:var(--dim);font-weight:400">AI AdBlock</span></h1>
+  </header>
+  <p class="intro" data-i18n="optIntro"></p>
+
+  <h2 data-i18n="optProvider"></h2>
+
+  <label class="provider">
+    <div class="row">
+      <input type="radio" name="provider" value="openai" />
+      <span class="name">OpenAI</span><span class="model">gpt-4o-mini</span>
+    </div>
+    <input type="password" id="key-openai" data-i18n-ph="keyPlaceholder" autocomplete="off" spellcheck="false" />
+  </label>
+
+  <label class="provider">
+    <div class="row">
+      <input type="radio" name="provider" value="gemini" />
+      <span class="name">Google Gemini</span><span class="model">gemini-2.5-flash</span>
+    </div>
+    <input type="password" id="key-gemini" data-i18n-ph="keyPlaceholder" autocomplete="off" spellcheck="false" />
+  </label>
+
+  <label class="provider">
+    <div class="row">
+      <input type="radio" name="provider" value="deepseek" />
+      <span class="name">DeepSeek</span><span class="model">deepseek-chat</span>
+    </div>
+    <input type="password" id="key-deepseek" data-i18n-ph="keyPlaceholder" autocomplete="off" spellcheck="false" />
+  </label>
+
+  <label class="provider">
+    <div class="row">
+      <input type="radio" name="provider" value="claude" />
+      <span class="name">Anthropic Claude</span><span class="model">claude-haiku-4-5</span>
+    </div>
+    <input type="password" id="key-claude" data-i18n-ph="keyPlaceholder" autocomplete="off" spellcheck="false" />
+  </label>
+
+  <div class="actions">
+    <button id="save" data-i18n="optSave"></button>
+    <button id="test" data-i18n="optTest"></button>
+  </div>
+  <div id="status"></div>
+
+  <div class="security">
+    <h2 style="margin-top:0" data-i18n="secTitle"></h2>
+    <ul>
+      <li data-i18n="sec1"></li>
+      <li data-i18n="sec2"></li>
+      <li class="oss">
+        <span><span data-i18n="sec3"></span>
+        <a href="https://github.com/cememir/aidblock" target="_blank" rel="noopener" data-i18n="srcLink"></a></span>
+      </li>
+    </ul>
+  </div>
+
+  <script src="options.js"></script>
+</main>
+</body>
+</html>

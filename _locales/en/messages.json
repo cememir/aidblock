@@ -1,0 +1,32 @@
+{
+  "extName": { "message": "Sentinel — AI AdBlock" },
+  "extDesc": { "message": "Self-learning AI ad blocker. Blocks known ad networks instantly, learns new ones in the background. Bring your own API key." },
+
+  "statusActive": { "message": "Protection active" },
+  "statusOff": { "message": "Protection off" },
+  "blockedToday": { "message": "Blocked today" },
+  "blockedTotal": { "message": "Blocked total" },
+  "cachedVerdicts": { "message": "cached verdicts" },
+  "blockedByAI": { "message": "domains blocked by AI" },
+  "clearCache": { "message": "Clear cache" },
+  "keyWarn": { "message": "No API key set — only the basic blocklist is active." },
+  "openSettings": { "message": "Open settings" },
+
+  "optIntro": { "message": "Pick your AI provider and paste your own API key. The key stays in your browser — it is only ever sent to the provider you choose." },
+  "optProvider": { "message": "AI provider" },
+  "keyPlaceholder": { "message": "Paste your API key" },
+  "optSave": { "message": "Save" },
+  "optSaved": { "message": "Saved — AI classification is active." },
+  "optSavedNoKey": { "message": "Saved. No key for the selected provider yet — only the basic blocklist will run." },
+  "optTest": { "message": "Test key" },
+  "optTesting": { "message": "Testing…" },
+  "optTestNoKey": { "message": "Enter a key for the selected provider first." },
+  "optTestOk": { "message": "Key works — AI classification is ready." },
+  "optTestFail": { "message": "Key test failed:" },
+
+  "secTitle": { "message": "Security & privacy" },
+  "sec1": { "message": "Your API key is stored only in this browser (chrome.storage.local). It is never synced, logged or shared — the extension has no backend server." },
+  "sec2": { "message": "The key is sent exclusively to the official API of the provider you selected, over HTTPS, and only to classify ad domains. No browsing history is collected." },
+  "sec3": { "message": "Sentinel is fully open source — every line of code can be audited." },
+  "srcLink": { "message": "View source code" }
+}
