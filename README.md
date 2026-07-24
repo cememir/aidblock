@@ -1,81 +1,86 @@
 # Sentinel — AI AdBlock (Chrome MV3)
 
-Kendi kendine öğrenen, yapay zekâ destekli, sıfır-ayar reklam engelleyici.
-**%100 açık kaynak** — arka uç sunucusu yok, telemetri yok, abonelik yok.
+Self-learning, AI-powered, zero-config ad blocker.
+**100% open source** — no backend, no telemetry, no subscription.
 
-> Self-learning, AI-powered, zero-config ad blocker. 100% open source — no backend, no telemetry, no subscription. English store texts: [`store/STORE_LISTING.md`](store/STORE_LISTING.md) · Privacy: [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)
+> 🇹🇷 Türkçe dokümantasyon: [README.tr.md](README.tr.md) · Store texts (EN+TR): [`store/STORE_LISTING.md`](store/STORE_LISTING.md) · Privacy: [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md)
 
-## Nasıl çalışır?
+## How it works
 
-1. **Anında engelleme** — Bilinen 140'tan fazla reklam/izleme ağı `rules_static.json` içindeki
-   `declarativeNetRequest` kurallarıyla, AI'a hiç sorulmadan tarayıcı motorunda engellenir.
-2. **AI öğrenmesi** — Sayfalardaki *tanınmayan* üçüncü taraf alan adları kuyruğa alınır ve
-   toplu halde (15'erli) seçtiğiniz AI sağlayıcısına tek istekle sorulur: `block` mı `allow` mu?
-3. **Önbellek** — Her karar 30 gün `chrome.storage.local`'da saklanır. Aynı alan adı
-   tekrar görüldüğünde **AI hiç çağrılmaz**, cevap doğrudan cache'den gelir.
-4. **Dinamik kural** — `block` kararı alan alan adları için dinamik engelleme kuralı eklenir;
-   engelleme JS'te değil, ağ katmanında olur (performans kaybı yok).
-5. **Kozmetik filtre** — Ağdan engellenemeyen sayfa-içi reklam kutuları için siteye özel
-   CSS seçicileri AI'dan bir kez alınır, 7 gün hostname bazında cache'lenir.
+1. **Instant blocking** — 140+ known ad/tracking networks are blocked by the
+   `declarativeNetRequest` rules in `rules_static.json`, natively in the browser engine,
+   with no AI call at all.
+2. **AI learning** — *Unknown* third-party domains seen on pages are queued and sent
+   in batches (15 at a time) to your chosen AI provider with a single question: `block` or `allow`?
+3. **Cache** — Every verdict is stored for 30 days in `chrome.storage.local`. When the same
+   domain shows up again, **the AI is never called** — the answer comes straight from cache.
+4. **Dynamic rules** — Domains classified as ads become dynamic blocking rules; blocking
+   happens at the network layer, not in JS (no performance penalty). Rules are
+   **third-party only** — a domain is never blocked on its own site.
+5. **Cosmetic filtering** — Leftover in-page ad boxes are hidden with site-specific CSS
+   selectors generated once by AI and cached per hostname for 7 days. Selectors pass a
+   runtime safety check so they can never hide video players or page layout.
 
-## Desteklenen AI sağlayıcıları
+## Supported AI providers
 
-Her kullanıcı **kendi API anahtarını** girer (ayarlar sayfasından):
+Every user enters **their own API key** (on the settings page):
 
-| Sağlayıcı | Model | Anahtar alma |
+| Provider | Model | Get a key |
 |---|---|---|
 | OpenAI | `gpt-4o-mini` | <https://platform.openai.com/api-keys> |
 | Google Gemini | `gemini-2.5-flash` | <https://aistudio.google.com/apikey> |
 | DeepSeek | `deepseek-chat` | <https://platform.deepseek.com/api_keys> |
 | Anthropic Claude | `claude-haiku-4-5` | <https://platform.claude.com/settings/keys> |
 
-Anahtar girilmezse eklenti yalnızca dahili statik listeyle (çevrimdışı) çalışır.
+Without a key, the extension still works fully offline using its built-in static blocklist.
 
-## Güvenlik
+## Security
 
-- API anahtarı **yalnızca tarayıcıda** saklanır (`chrome.storage.local`) — senkronize edilmez,
-  loglanmaz, paylaşılmaz. Eklentinin arka uç sunucusu yoktur; geliştirici hiçbir veri almaz.
-- Anahtar yalnızca **sizin seçtiğiniz** sağlayıcının resmi API'sine HTTPS ile gönderilir.
-- AI'a yalnızca üçüncü taraf **alan adları** ve anonim reklam-kutusu özetleri gönderilir;
-  sayfa içeriği, form verisi veya kişisel bilgi asla gönderilmez.
-- Tüm kod bu depodadır ve denetlenebilir (MIT lisansı).
+- Your API key is stored **only in your browser** (`chrome.storage.local`) — never synced,
+  never logged, never shared. There is no backend server; the developers receive no data.
+- The key is sent exclusively to the official API of the provider **you** selected, over HTTPS.
+- Only third-party **domain names** and anonymous ad-container summaries are sent to the AI —
+  never page content, form data or personal information.
+- All code lives in this repository and can be audited (MIT license).
 
-## Kurulum (geliştirici modu)
+## Installation (developer mode)
 
-1. Depoyu klonlayın: `git clone https://github.com/cememir/aidblock.git`
-2. Chrome → `chrome://extensions` → "Geliştirici modu"nu açın.
-3. "Paketlenmemiş öğe yükle" → bu klasörü seçin.
-4. Açılan ayarlar sayfasından sağlayıcınızı seçip API anahtarınızı girin, "Anahtarı test et" ile doğrulayın.
+1. Clone the repo: `git clone https://github.com/cememir/aidblock.git`
+2. Chrome → `chrome://extensions` → enable "Developer mode".
+3. "Load unpacked" → select this folder.
+4. The settings page opens automatically: pick a provider, paste your API key and
+   verify it with "Test key".
 
-## Chrome Web Store yayını
+## Chrome Web Store publishing
 
-- Yayın paketi: `bash scripts/build.sh` → `dist/sentinel-aidblock-v<versiyon>.zip`
-- Mağaza metinleri (EN+TR), izin gerekçeleri ve yayın kontrol listesi: [`store/STORE_LISTING.md`](store/STORE_LISTING.md)
-- Mağaza görselleri: `store/assets/` (ikon, 3 ekran görüntüsü, promo görselleri)
+- Release package: `bash scripts/build.sh` → `dist/sentinel-aidblock-v<version>.zip`
+- Store texts (EN+TR), permission justifications and the publishing checklist:
+  [`store/STORE_LISTING.md`](store/STORE_LISTING.md)
+- Store assets: `store/assets/` (icon, 3 screenshots, promo images)
 
-## Maliyet notu
+## Cost note
 
-Ucuz sınıf modeller + toplu sorgu + 30 günlük cache sayesinde tipik kullanımda günlük çağrı
-sayısı birkaç düzineyi geçmez; ilk günlerden sonra neredeyse sıfıra iner (her şey cache'ten gelir).
+Cheap-tier models + batched queries + the 30-day cache keep typical usage to a few dozen
+tiny API calls per day at most — dropping to near zero after the first days of browsing.
 
-## Dosyalar
+## Files
 
-| Dosya | Görev |
+| File | Purpose |
 |---|---|
-| `background.js` | AI sağlayıcıları, sınıflandırma, kuyruk/batch, önbellek, dinamik kurallar, istatistik |
-| `rules_static.json` | Temel engel listesi (AI'sız, anında) |
-| `content.js` | Kozmetik filtreleme (genel + AI seçicileri, cache'li) |
-| `popup.html/js` | Toggle + istatistik + ayarlar kısayolu |
-| `options.html/js` | Sağlayıcı seçimi + API anahtarları (yalnızca yerel depolama) |
-| `_locales/` | EN + TR arayüz metinleri |
-| `store/` | Chrome Web Store metinleri ve görselleri |
-| `scripts/build.sh` | Yayın zip'i üretir |
+| `background.js` | AI providers, classification, queue/batching, cache, dynamic rules, stats |
+| `rules_static.json` | Base blocklist (148 rules, no AI, instant) |
+| `content.js` | Cosmetic filtering (generic + AI selectors, cached, runtime-safe) |
+| `popup.html/js` | Toggle + stats + settings shortcut |
+| `options.html/js` | Provider selection + API keys (local storage only) |
+| `_locales/` | EN + TR UI strings |
+| `store/` | Chrome Web Store texts and assets |
+| `scripts/build.sh` | Builds the release zip (date-time versioning) |
 
-## Geliştiriciler
+## Developers
 
 - **Muslu YÜKSEKTEPE** — <musluyuksektepe@gmail.com>
 - **Cem Emir YÜKSEKTEPE** — <cememir2017@gmail.com>
 
-## Lisans
+## License
 
 [MIT](LICENSE)
