@@ -413,7 +413,27 @@ function cosmeticFresh(hit) {
   return Date.now() - hit.ts < ttl;
 }
 
-async function classifyElements(hostname, samples) {
+/** AI seçicilerinde yasak kalıplar: çıplak tag, body/html/*, medya elementleri. */
+const SEL_BARE_TAG = /^[a-z][a-z0-9]*$/i;
+const SEL_FORBIDDEN = /(^|[\s>~+])(body|html|\*)([\s>~+]|$)|video|audio/i;
+
+function sanitizeSelectors(raw) {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(
+    raw
+      .filter((s) => typeof s === "string")
+      .map((s) => s.trim())
+      .filter((s) => s && s.length < 200 && !SEL_BARE_TAG.test(s) && !SEL_FORBIDDEN.test(s))
+  )].slice(0, 20);
+}
+
+/**
+ * Sayfanın sadeleştirilmiş HTML'ini AI'a gönderir; AI reklam kapsayıcıları
+ * için class/id tabanlı CSS seçicileri döndürür. Seçiciler burada sözdizimsel
+ * süzgeçten, content script'te ise çalışma anı güvenlik testinden geçer.
+ * Sonuç hostname bazında önbelleklenir.
+ */
+async function classifyHTML(hostname, html) {
   if (isNoCosmeticHost(hostname)) {
     return { selectors: [], debug: "kozmetik-kapali-site" }; // video/webapp siteleri
   }
@@ -422,56 +442,48 @@ async function classifyElements(hostname, samples) {
   const hit = cosmetic[hostname];
   if (cosmeticFresh(hit)) return { selectors: hit.selectors, debug: "cache" };
 
-  if (!samples?.length) return { selectors: [], debug: "ornek-yok" };
+  if (!html || html.length < 200) return { selectors: [], debug: "html-yok" };
 
-  // AI seçici İCAT ETMEZ: elementler content script'te numaralanır ve kararlı
-  // CSS yolları (sel) üretilir. AI yalnızca hangi indekslerin reklam olduğunu
-  // söyler; biz indeksleri hazır yollara eşleriz. (Geniş/yanlış seçici riski yok.)
-  const forAI = samples.map(({ sel, ...rest }) => rest); // sel AI'a gitmez
   const prompt = `You are an ad-detection assistant for a browser ad blocker's cosmetic filtering.
-Below are sampled page elements from "${hostname}" as JSON. Each has:
-  i (index), tag, id, cls, src (iframe/img host), href (link target URL —
-  redirect paths like /out/, /go/, /reklam/ are strong ad signals),
-  rel (link rel attribute — "nofollow"/"sponsored" on image links is a strong ad signal),
-  lbl (element carries a visible ad label like "Reklam"/"Sponsorlu"/"Sponsored" — near-certain ad),
-  bg (has CSS background image), txt (visible text), w/h (pixel size),
-  x/y (page position — ads cluster in top bars, side columns, between sections).
-Decide which elements are advertisement / sponsor / promo content to hide.
-Ad signals: links to commercial or advertiser sites, marketing language
-(discount, buy, campaign; Turkish: "reklam", "indirim", "kampanya", "sponsor",
-"komisyon", "satın al"), banner geometry (full-width thin bars at the top,
-tall side-column boxes, 728x90 / 300x250 / 300x600-like sizes), image-only links.
-NOT ads: navigation, logo, search, login/register buttons, forum thread lists,
-article content, comments, footers, cookie notices.
-If unsure about an element, do NOT include it. Respond ONLY as JSON:
-{"hide": [indices]}.
+Below is the simplified HTML of "${hostname}" (scripts/styles stripped, text truncated).
+Find every element that is an advertisement, sponsored content or promo banner, and
+return CSS selectors that hide their OUTERMOST container (including wrapper, background
+strip and close button).
 
-Elements:
-${JSON.stringify(forAI).slice(0, 9000)}`;
+Selector rules — follow strictly:
+- Use class/id/attribute selectors that literally exist in this HTML,
+  e.g. ".threadSponsor", "section.topbar", "div[data-cname]", ".some-random-class".
+- NEVER use bare tag selectors (div, a, img, section...), never "body", "html", "*",
+  and never :nth-child paths.
+- Prefer one selector that covers all instances of the same ad slot class.
+- Do NOT target: navigation, logo, search, login/register, forum thread lists,
+  article content, comments, the whole footer, cookie notices.
+- Maximum 20 selectors. If unsure about an element, leave it out.
+
+Ad signals: visible labels ("Reklam", "Sponsorlu", "Sponsored", "Advertisement");
+links with rel="nofollow"/"sponsored" wrapping banner images; 728x90 / 300x250-like
+banner images; top notification bars promoting products; classes containing
+ad/banner/sponsor/topbar/promo/reklam; randomized/obfuscated class names wrapping
+external marketing links; iframes from ad networks.
+
+Respond ONLY as JSON: {"selectors": ["...", "..."]}
+
+HTML:
+${html.slice(0, 45000)}`;
 
   try {
     const parsed = await callLLM(prompt);
     if (!parsed) return { selectors: [], debug: "anahtar-yok" };
 
-    const hideRaw = parsed.hide ?? parsed.indices ?? parsed.ads;
-    if (!Array.isArray(hideRaw)) {
+    const raw = parsed.selectors ?? parsed.hide ?? parsed.ads;
+    if (!Array.isArray(raw)) {
       // Beklenen alan yok → model formata uymadı; CACHE'LEME, sonraki sayfada tekrar dene
-      return { selectors: [], debug: "hide-alani-yok: " + JSON.stringify(parsed).slice(0, 300) };
+      return { selectors: [], debug: "selectors-alani-yok: " + JSON.stringify(parsed).slice(0, 300) };
     }
-    // Toleranslı ayrıştırma: model indeksleri "3" (string) veya {i:3} olarak dönebilir
-    const hide = new Set(
-      hideRaw
-        .map((n) => (typeof n === "object" && n !== null ? n.i ?? n.index : n))
-        .map(Number)
-        .filter(Number.isInteger)
-    );
-    const selectors = samples
-      .filter(s => hide.has(Number(s.i)) && typeof s.sel === "string" && s.sel.length < 300)
-      .map(s => s.sel)
-      .slice(0, 15);
+    const selectors = sanitizeSelectors(raw);
     cosmetic[hostname] = { selectors, ts: Date.now() };
     await setLocal({ cosmetic });
-    return { selectors, debug: `ai-hide=${JSON.stringify([...hide])}` };
+    return { selectors, debug: `ai-ham=${raw.length} süzülmüş=${selectors.length}` };
   } catch (e) {
     console.warn("[Sentinel] Kozmetik sınıflandırma hatası:", e);
     return { selectors: [], debug: "hata: " + String(e && e.message || e) };
@@ -672,8 +684,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: true });
         break;
       }
-      case "CLASSIFY_ELEMENTS": {
-        const r = await classifyElements(msg.hostname, msg.samples);
+      case "CLASSIFY_HTML": {
+        const r = await classifyHTML(msg.hostname, msg.html);
         sendResponse({ selectors: r.selectors, debug: r.debug });
         break;
       }
