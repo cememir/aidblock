@@ -88,6 +88,19 @@ Sentinel blocks advertising and tracking requests. It uses a built-in blocklist 
 | Host permission `<all_urls>` | Ads appear on every website; the extension must observe third-party requests and apply cosmetic filtering on any page the user visits. A simplified page-structure snapshot is sent only to the AI provider the user configured — never to the developer. |
 | Remote code | Not used. All code is packaged; AI APIs return only JSON data (block/allow verdicts and CSS selector strings), never executable code. |
 
+### Broad host permission justification (dedicated review field)
+
+> Paste this into the "host permission justification" field. `<all_urls>` triggers an
+> in-depth review — this is expected for ad blockers and only extends review time.
+
+```
+Sentinel is an ad blocker. Ads and trackers appear on every website the user visits, so the extension must (1) observe outgoing third-party request URLs on all sites to queue unknown ad domains for classification, and (2) inject cosmetic CSS filters on all sites to hide residual ad containers. This is the same requirement as every other ad blocker on the store.
+
+activeTab is not a viable alternative: it grants access only after an explicit user gesture on a single tab, while ad blocking must work automatically, on every page, before the page finishes loading. Enumerating specific sites is equally impossible — the set of sites with ads is unbounded.
+
+Scope of use is minimal: request URLs are reduced to registrable domain names in memory; the only page-content processing is a simplified structural snapshot sent once per site strictly to the AI provider the user configured with their own API key. The developer operates no server and receives no data. The extension is fully open source: https://github.com/cememir/aidblock
+```
+
 ### Data usage disclosures (Privacy tab checkboxes)
 
 - Collects: **Website content** → No (a simplified page snapshot is sent only to the AI provider the user configured with their own key; the developer operates no server and collects nothing). **Web history** → No (domain names are processed in-memory and sent only to the user-configured AI provider).
@@ -167,6 +180,20 @@ Sentinel reklam ve izleme isteklerini engeller. Bilinen reklam ağları için da
 | Host izni `<all_urls>` | Reklamlar her sitede görünür; eklentinin kullanıcının ziyaret ettiği her sayfada üçüncü taraf istekleri gözlemlemesi ve kozmetik filtre uygulaması gerekir. Sadeleştirilmiş sayfa yapısı özeti yalnızca kullanıcının yapılandırdığı AI sağlayıcısına gönderilir — geliştiriciye asla. |
 | Uzak kod | Kullanılmaz. Tüm kod pakettedir; AI API'leri yalnızca JSON verisi döner (block/allow kararları ve CSS seçici metinleri), asla çalıştırılabilir kod dönmez. |
 
+### Geniş host izni gerekçesi (inceleme formundaki özel alan)
+
+> "Host permission justification" alanına yapıştırın. `<all_urls>` derinlemesine
+> inceleme tetikler — reklam engelleyiciler için bu beklenen bir durumdur ve
+> yalnızca inceleme süresini uzatır.
+
+```
+Sentinel bir reklam engelleyicidir. Reklamlar ve izleyiciler kullanıcının ziyaret ettiği HER sitede görünür; bu yüzden eklentinin (1) bilinmeyen reklam alan adlarını sınıflandırma kuyruğuna almak için tüm sitelerde giden üçüncü taraf istek URL'lerini gözlemlemesi ve (2) artakalan reklam kutularını gizlemek için tüm sitelerde kozmetik CSS filtresi uygulaması gerekir. Bu, mağazadaki diğer tüm reklam engelleyicilerle aynı gereksinimdir.
+
+activeTab geçerli bir alternatif değildir: yalnızca tek bir sekmede, açık bir kullanıcı hareketinden SONRA erişim verir; oysa reklam engelleme her sayfada, otomatik olarak ve sayfa yüklenmeden çalışmak zorundadır. Belirli siteleri saymak da imkânsızdır — reklam içeren sitelerin kümesi sınırsızdır.
+
+Kullanım kapsamı asgaridir: istek URL'leri bellekte alan adına indirgenir; tek sayfa-içeriği işlemi, kullanıcının KENDİ API anahtarıyla yapılandırdığı AI sağlayıcısına site başına bir kez gönderilen sadeleştirilmiş yapısal özettir. Geliştiricinin sunucusu yoktur, hiçbir veri almaz. Eklenti tamamen açık kaynaklıdır: https://github.com/cememir/aidblock
+```
+
 ### Veri kullanım beyanları
 
 - Toplanan: **Site içeriği** → Hayır (sadeleştirilmiş sayfa özeti yalnızca kullanıcının kendi anahtarıyla yapılandırdığı AI sağlayıcısına gider; geliştiricinin sunucusu yoktur, hiçbir şey toplamaz). **Gezinme geçmişi** → Hayır (alan adları bellekte işlenir ve yalnızca kullanıcının yapılandırdığı AI sağlayıcısına gönderilir).
@@ -183,4 +210,4 @@ Sentinel reklam ve izleme isteklerini engeller. Bilinen reklam ağları için da
 4. Privacy sekmesi: tek amaç açıklaması + izin gerekçeleri + veri beyanları (yukarıda hazır).
 5. Privacy policy URL: GitHub'daki `PRIVACY_POLICY.md` linki.
 6. Distribution: tüm bölgeler, ücretsiz.
-7. Submit for review. (`<all_urls>` + `webRequest` nedeniyle inceleme birkaç gün sürebilir — gerekçeler yukarıda hazır olduğu için sorun beklenmez.)
+7. Submit for review sırasında "Yayınlama ertelenecek / Geniş Ana Makine İzinleri" uyarısı çıkması NORMALDİR — bu bir ret değildir, yalnızca derinlemesine inceleme kuyruğu demektir (reklam engelleyicilerin tamamı bu süreçten geçer). Yukarıdaki "Geniş host izni gerekçesi" metnini ilgili alana yapıştırıp göndermeye devam edin; inceleme birkaç gün–birkaç hafta sürebilir.
